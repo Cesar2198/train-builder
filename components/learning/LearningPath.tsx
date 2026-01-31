@@ -1,12 +1,16 @@
 'use client';
 
-import { Skill, SkillContent } from '@/types/skill';
+import { useState } from 'react';
+import { Skill, SkillContent, Badge as BadgeType } from '@/types/skill';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LearningObjective } from './LearningObjective';
 import { MicroLessonList } from './MicroLesson';
 import { ResourceList } from './ResourceCard';
 import { QuickQuiz } from './QuickQuiz';
+import { ContentGeneratorAgent, QuizGeneratorAgent } from '@/components/agents';
+import { BadgeShowcase } from '@/components/badges';
 import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -14,8 +18,11 @@ import {
   Brain,
   Clock,
   Play,
-  Target,
-  Sparkles
+  Sparkles,
+  Bot,
+  Award,
+  Cpu,
+  Wand2
 } from 'lucide-react';
 
 interface LearningPathProps {
@@ -25,7 +32,66 @@ interface LearningPathProps {
   className?: string;
 }
 
+// Sample badges for demonstration
+const sampleBadges: BadgeType[] = [
+  {
+    id: 'badge-1',
+    name: 'Oro en Creacion de HUs',
+    description: 'Obtuviste 85% en el examen',
+    level: 'gold',
+    icon: 'Award',
+    skillId: 'hu-creation',
+    requiredScore: 80,
+    unlockedAt: new Date('2024-01-15'),
+    status: 'unlocked',
+  },
+  {
+    id: 'badge-2',
+    name: 'Plata en React Hooks',
+    description: 'Obtuviste 75% en el examen',
+    level: 'silver',
+    icon: 'Award',
+    skillId: 'react-hooks',
+    requiredScore: 70,
+    unlockedAt: new Date('2024-01-10'),
+    status: 'unlocked',
+  },
+  {
+    id: 'badge-3',
+    name: 'Diamante en Figma',
+    description: 'Obtuviste 98% en el examen',
+    level: 'diamond',
+    icon: 'Award',
+    skillId: 'figma-basics',
+    requiredScore: 95,
+    unlockedAt: new Date('2024-01-20'),
+    status: 'unlocked',
+  },
+  {
+    id: 'badge-4',
+    name: 'Bronce en Docker',
+    description: 'Por desbloquear',
+    level: 'bronze',
+    icon: 'Award',
+    skillId: 'docker-containers',
+    requiredScore: 60,
+    status: 'locked',
+  },
+  {
+    id: 'badge-5',
+    name: 'Platino en SQL',
+    description: 'Por desbloquear',
+    level: 'platinum',
+    icon: 'Award',
+    skillId: 'sql-fundamentals',
+    requiredScore: 90,
+    status: 'locked',
+  },
+];
+
 export function LearningPath({ skill, content, onBack, className }: LearningPathProps) {
+  const [activeTab, setActiveTab] = useState('lessons');
+
   return (
     <div className={cn('space-y-8', className)}>
       {/* Header */}
@@ -126,8 +192,87 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
       {/* Learning Objective */}
       <LearningObjective objective={content.objective} />
 
+      {/* AI Agents Section */}
+      <Card className="overflow-hidden border-2 border-dashed border-primary/20">
+        <CardHeader className="bg-gradient-to-r from-violet-500/5 via-cyan-500/5 to-amber-500/5">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/20 via-cyan-500/20 to-amber-500/20">
+              <Bot className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                Agentes de IA
+                <Badge className="bg-gradient-to-r from-violet-500 to-cyan-500 text-white">
+                  3 Activos
+                </Badge>
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Asistentes inteligentes para personalizar tu aprendizaje
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid md:grid-cols-3 gap-4">
+            {/* Content Generator */}
+            <div className="p-4 rounded-xl border-2 hover:border-violet-500/50 transition-colors group">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-violet-500/10 group-hover:scale-110 transition-transform">
+                  <Sparkles className="w-5 h-5 text-violet-500" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-violet-600">Content Generator</h4>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Genera contenido educativo dinamico y personalizado
+                  </p>
+                  <Badge variant="outline" className="mt-2 text-xs">
+                    Activo
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Quiz Generator */}
+            <div className="p-4 rounded-xl border-2 hover:border-cyan-500/50 transition-colors group">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-cyan-500/10 group-hover:scale-110 transition-transform">
+                  <Brain className="w-5 h-5 text-cyan-500" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-cyan-600">Quiz Generator</h4>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Crea examenes adaptativos segun tu nivel
+                  </p>
+                  <Badge variant="outline" className="mt-2 text-xs">
+                    Activo
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Evaluator */}
+            <div className="p-4 rounded-xl border-2 hover:border-amber-500/50 transition-colors group">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-amber-500/10 group-hover:scale-110 transition-transform">
+                  <Award className="w-5 h-5 text-amber-500" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-amber-600">Evaluator</h4>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Analiza resultados y otorga badges
+                  </p>
+                  <Badge variant="outline" className="mt-2 text-xs">
+                    Activo
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Content Tabs */}
-      <Tabs defaultValue="lessons" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="w-full justify-start gap-2 bg-transparent p-0 h-auto flex-wrap">
           <TabsTrigger
             value="lessons"
@@ -148,7 +293,21 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
             className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 transition-all"
           >
             <Brain className="w-4 h-4 mr-2" />
-            Quiz
+            Examen
+          </TabsTrigger>
+          <TabsTrigger
+            value="agents"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 transition-all"
+          >
+            <Wand2 className="w-4 h-4 mr-2" />
+            Agentes IA
+          </TabsTrigger>
+          <TabsTrigger
+            value="badges"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 transition-all"
+          >
+            <Award className="w-4 h-4 mr-2" />
+            Badges
           </TabsTrigger>
         </TabsList>
 
@@ -161,7 +320,35 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
         </TabsContent>
 
         <TabsContent value="quiz" className="mt-6">
-          <QuickQuiz questions={content.quiz} />
+          <QuickQuiz
+            questions={content.quiz}
+            skillId={skill.id}
+            skillName={skill.name}
+          />
+        </TabsContent>
+
+        <TabsContent value="agents" className="mt-6 space-y-6">
+          <ContentGeneratorAgent
+            input={{
+              skillId: skill.id,
+              skillName: skill.name,
+              difficulty: skill.difficulty,
+              category: skill.category,
+            }}
+          />
+
+          <QuizGeneratorAgent
+            input={{
+              skillId: skill.id,
+              difficulty: skill.difficulty,
+              numberOfQuestions: 10,
+              topics: content.microLessons.map(l => l.title),
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="badges" className="mt-6">
+          <BadgeShowcase badges={sampleBadges} />
         </TabsContent>
       </Tabs>
     </div>

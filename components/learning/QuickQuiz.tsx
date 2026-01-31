@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { QuizQuestion } from '@/types/skill';
+import { useState, useRef } from 'react';
+import { QuizQuestion, ExamResult, ExamAnswer } from '@/types/skill';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EvaluatorAgent } from '@/components/agents';
 import { cn } from '@/lib/utils';
 import {
   Brain,
@@ -11,20 +12,27 @@ import {
   XCircle,
   ChevronRight,
   RefreshCcw,
-  Trophy
+  Clock,
+  Zap
 } from 'lucide-react';
 
 interface QuickQuizProps {
   questions: QuizQuestion[];
+  skillId: string;
+  skillName: string;
   className?: string;
 }
 
-export function QuickQuiz({ questions, className }: QuickQuizProps) {
+export function QuickQuiz({ questions, skillId, skillName, className }: QuickQuizProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [showEvaluator, setShowEvaluator] = useState(false);
+  const [answers, setAnswers] = useState<ExamAnswer[]>([]);
+  const [startTime] = useState(Date.now());
+  const questionStartTime = useRef(Date.now());
 
   const question = questions[currentQuestion];
   const isCorrect = selectedAnswer === question?.correctAnswer;
@@ -37,9 +45,21 @@ export function QuickQuiz({ questions, className }: QuickQuizProps) {
   const handleCheckAnswer = () => {
     if (selectedAnswer === null) return;
     setShowResult(true);
-    if (selectedAnswer === question.correctAnswer) {
+
+    const timeToAnswer = Math.round((Date.now() - questionStartTime.current) / 1000);
+    const isAnswerCorrect = selectedAnswer === question.correctAnswer;
+
+    if (isAnswerCorrect) {
       setScore(prev => prev + 1);
     }
+
+    // Record answer
+    setAnswers(prev => [...prev, {
+      questionId: question.id,
+      selectedOption: selectedAnswer,
+      isCorrect: isAnswerCorrect,
+      timeToAnswer,
+    }]);
   };
 
   const handleNextQuestion = () => {
@@ -47,6 +67,7 @@ export function QuickQuiz({ questions, className }: QuickQuizProps) {
       setCurrentQuestion(prev => prev + 1);
       setSelectedAnswer(null);
       setShowResult(false);
+      questionStartTime.current = Date.now();
     } else {
       setCompleted(true);
     }
@@ -58,69 +79,131 @@ export function QuickQuiz({ questions, className }: QuickQuizProps) {
     setShowResult(false);
     setScore(0);
     setCompleted(false);
+    setShowEvaluator(false);
+    setAnswers([]);
+    questionStartTime.current = Date.now();
   };
+
+  const handleShowEvaluation = () => {
+    setShowEvaluator(true);
+  };
+
+  // Show evaluator agent after completing quiz
+  if (showEvaluator) {
+    const examResult: ExamResult = {
+      id: `exam-${Date.now()}`,
+      skillId,
+      score,
+      totalQuestions: questions.length,
+      correctAnswers: score,
+      timeSpent: Math.round((Date.now() - startTime) / 1000),
+      completedAt: new Date(),
+      answers,
+      feedback: {
+        overallGrade: '',
+        percentage: 0,
+        strengths: [],
+        areasToImprove: [],
+        recommendations: [],
+        personalizedMessage: '',
+      },
+    };
+
+    return (
+      <EvaluatorAgent
+        examResult={examResult}
+        skillName={skillName}
+        className={className}
+      />
+    );
+  }
 
   if (completed) {
     const percentage = Math.round((score / questions.length) * 100);
     const isPassing = percentage >= 70;
+    const totalTime = Math.round((Date.now() - startTime) / 1000);
+    const minutes = Math.floor(totalTime / 60);
+    const seconds = totalTime % 60;
 
     return (
-      <Card className={cn('overflow-hidden', className)}>
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <div className={cn(
-              'w-20 h-20 mx-auto rounded-full flex items-center justify-center',
-              isPassing ? 'bg-green-500/10' : 'bg-yellow-500/10'
-            )}>
-              <Trophy className={cn(
-                'w-10 h-10',
-                isPassing ? 'text-green-500' : 'text-yellow-500'
-              )} />
-            </div>
-
-            <div>
-              <h3 className="text-2xl font-bold">
-                {isPassing ? 'Excelente!' : 'Buen intento!'}
-              </h3>
-              <p className="text-muted-foreground mt-1">
-                {isPassing
-                  ? 'Has demostrado un buen dominio del tema'
-                  : 'Repasa el contenido e intenta de nuevo'}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-center gap-4 py-4">
-              <div className="text-center">
-                <p className="text-4xl font-bold text-primary">{score}</p>
-                <p className="text-sm text-muted-foreground">Correctas</p>
-              </div>
-              <div className="w-px h-12 bg-border" />
-              <div className="text-center">
-                <p className="text-4xl font-bold">{questions.length}</p>
-                <p className="text-sm text-muted-foreground">Total</p>
-              </div>
-              <div className="w-px h-12 bg-border" />
-              <div className="text-center">
-                <p className={cn(
-                  'text-4xl font-bold',
-                  isPassing ? 'text-green-500' : 'text-yellow-500'
-                )}>
-                  {percentage}%
-                </p>
-                <p className="text-sm text-muted-foreground">Puntaje</p>
-              </div>
-            </div>
-
-            <button
-              onClick={handleRestart}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
-            >
-              <RefreshCcw className="w-4 h-4" />
-              Intentar de nuevo
-            </button>
+      <div className={cn('space-y-4', className)}>
+        {/* Header */}
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-purple-500/10">
+            <Brain className="w-5 h-5 text-purple-500" />
           </div>
-        </CardContent>
-      </Card>
+          <div>
+            <h3 className="font-semibold">Quiz Completado</h3>
+            <p className="text-sm text-muted-foreground">
+              Examen finalizado - Revisa tus resultados
+            </p>
+          </div>
+        </div>
+
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-6">
+              {/* Score display */}
+              <div className="relative">
+                <div className={cn(
+                  'w-32 h-32 mx-auto rounded-full flex items-center justify-center',
+                  'border-4',
+                  isPassing
+                    ? 'bg-green-500/10 border-green-500'
+                    : 'bg-yellow-500/10 border-yellow-500'
+                )}>
+                  <div>
+                    <p className={cn(
+                      'text-4xl font-bold',
+                      isPassing ? 'text-green-600' : 'text-yellow-600'
+                    )}>
+                      {percentage}%
+                    </p>
+                    <p className="text-sm text-muted-foreground">Puntaje</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats grid */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-muted/50">
+                  <CheckCircle2 className="w-6 h-6 mx-auto text-green-500 mb-2" />
+                  <p className="text-2xl font-bold">{score}</p>
+                  <p className="text-xs text-muted-foreground">Correctas</p>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/50">
+                  <XCircle className="w-6 h-6 mx-auto text-red-500 mb-2" />
+                  <p className="text-2xl font-bold">{questions.length - score}</p>
+                  <p className="text-xs text-muted-foreground">Incorrectas</p>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/50">
+                  <Clock className="w-6 h-6 mx-auto text-blue-500 mb-2" />
+                  <p className="text-2xl font-bold">{minutes}:{seconds.toString().padStart(2, '0')}</p>
+                  <p className="text-xs text-muted-foreground">Tiempo</p>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                <button
+                  onClick={handleShowEvaluation}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-amber-500/20"
+                >
+                  <Zap className="w-5 h-5" />
+                  Ver Evaluacion Detallada
+                </button>
+                <button
+                  onClick={handleRestart}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 rounded-xl font-medium hover:bg-muted transition-colors"
+                >
+                  <RefreshCcw className="w-4 h-4" />
+                  Intentar de nuevo
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -152,7 +235,7 @@ export function QuickQuiz({ questions, className }: QuickQuizProps) {
             className={cn(
               'flex-1 h-1.5 rounded-full transition-all',
               idx < currentQuestion
-                ? 'bg-primary'
+                ? answers[idx]?.isCorrect ? 'bg-green-500' : 'bg-red-500'
                 : idx === currentQuestion
                   ? 'bg-primary/50'
                   : 'bg-muted'
@@ -256,7 +339,7 @@ export function QuickQuiz({ questions, className }: QuickQuizProps) {
                 onClick={handleNextQuestion}
                 className="inline-flex items-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
               >
-                {currentQuestion < questions.length - 1 ? 'Siguiente' : 'Ver resultados'}
+                {currentQuestion < questions.length - 1 ? 'Siguiente' : 'Finalizar examen'}
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
