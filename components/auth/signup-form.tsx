@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { signUp } from '@/lib/auth/actions'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -14,7 +17,6 @@ export function SignUpForm() {
 
     const formData = new FormData(event.currentTarget)
     
-    // Validar que las contraseñas coincidan
     const password = formData.get('password') as string
     const confirmPassword = formData.get('confirm_password') as string
     
@@ -24,11 +26,26 @@ export function SignUpForm() {
       return
     }
 
-    const result = await signUp(formData)
+    const email = formData.get('email') as string
+    const fullName = formData.get('full_name') as string
 
-    if (result?.error) {
-      setError(result.error)
+    const { error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
+    })
+
+    if (signUpError) {
+      setError(signUpError.message)
       setIsLoading(false)
+    } else {
+      // Esperar a que el estado de autenticación se actualice
+      await new Promise(resolve => setTimeout(resolve, 500))
+      window.location.href = '/'
     }
   }
 

@@ -1,11 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from '@/lib/auth/actions'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
+  const supabase = createClient()
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -13,11 +16,27 @@ export function LoginForm() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-    const result = await signIn(formData)
+    const email = formData.get('email') as string
+    const password = formData.get('password') as string
 
-    if (result?.error) {
-      setError(result.error)
+    console.log('Attempting login with email:', email)
+
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    console.log('Login response:', { data, error: signInError })
+
+    if (signInError) {
+      console.error('Login error:', signInError)
+      setError(signInError.message)
       setIsLoading(false)
+    } else {
+      console.log('Login successful, session:', data.session)
+      // Esperar a que el estado de autenticación se actualice
+      await new Promise(resolve => setTimeout(resolve, 500))
+      window.location.href = '/'
     }
   }
 

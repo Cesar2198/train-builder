@@ -9,7 +9,7 @@ export function Navbar() {
   const pathname = usePathname()
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'Dashboard', href: '/' },
     { name: 'Perfil', href: '/profile' },
   ]
 
@@ -23,7 +23,7 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between items-center">
           <div className="flex items-center">
-            <Link href="/dashboard" className="flex items-center">
+            <Link href="/" className="flex items-center">
               <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Train Builder
               </span>
