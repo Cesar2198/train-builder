@@ -17,13 +17,13 @@ export default function LoginPage() {
   // Si ya hay usuario, redirigir al dashboard
   if (user) {
     if (typeof window !== 'undefined') {
-      window.location.href = '/'
+      window.location.href = '/dashboard'
     }
     return null
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-blue-50 px-4 py-12 sm:px-6 lg:px-8">
       <LoginForm />
     </div>
   )

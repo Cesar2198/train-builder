@@ -45,7 +45,7 @@ export function SignUpForm() {
     } else {
       // Esperar a que el estado de autenticación se actualice
       await new Promise(resolve => setTimeout(resolve, 500))
-      window.location.href = '/'
+      window.location.href = '/dashboard'
     }
   }
 
