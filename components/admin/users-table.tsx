@@ -7,21 +7,24 @@ import type { Profile, Role } from '@/types/auth'
 interface UsersTableProps {
   users: (Profile & { role?: Role })[]
   roles: Role[]
+  onUpdate?: () => void
 }
 
-export function UsersTable({ users, roles }: UsersTableProps) {
+export function UsersTable({ users, roles, onUpdate }: UsersTableProps) {
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
 
   const handleRoleChange = async (userId: string, roleId: string) => {
     setIsUpdating(userId)
     await updateUserRole(userId, roleId)
     setIsUpdating(null)
+    onUpdate?.()
   }
 
   const handleStatusChange = async (userId: string, status: 'active' | 'inactive' | 'suspended') => {
     setIsUpdating(userId)
     await updateUserStatus(userId, status)
     setIsUpdating(null)
+    onUpdate?.()
   }
 
   return (
