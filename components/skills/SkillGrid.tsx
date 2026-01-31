@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Skill, SkillCategory, SkillDifficulty } from '@/types/skill';
+import { Skill, SkillCategory, SkillDifficulty } from '@/types/database';
 import { SkillCard } from './SkillCard';
 import { SkillCardSkeleton } from './SkillCardSkeleton';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +14,12 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 
+interface SkillWithProgress extends Skill {
+  progress?: number;
+}
+
 interface SkillGridProps {
-  skills: Skill[];
+  skills: SkillWithProgress[];
   loading?: boolean;
   onSkillClick?: (skill: Skill) => void;
 }
@@ -65,13 +69,11 @@ export function SkillGrid({ skills, loading = false, onSkillClick }: SkillGridPr
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Header skeleton */}
         <div className="flex items-center justify-between">
           <div className="h-8 w-48 bg-muted rounded animate-pulse" />
           <div className="h-10 w-64 bg-muted rounded animate-pulse" />
         </div>
 
-        {/* Grid skeleton */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <SkillCardSkeleton key={i} />

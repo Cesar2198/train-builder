@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { QuizQuestion, ExamResult, ExamAnswer } from '@/types/skill';
+import { QuizQuestion } from '@/types/database';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EvaluatorAgent } from '@/components/agents';
@@ -13,29 +13,63 @@ import {
   ChevronRight,
   RefreshCcw,
   Clock,
-  Zap
+  Zap,
+  AlertCircle
 } from 'lucide-react';
 
 interface QuickQuizProps {
   questions: QuizQuestion[];
   skillId: string;
   skillName: string;
+  userId: string;
   className?: string;
 }
 
-export function QuickQuiz({ questions, skillId, skillName, className }: QuickQuizProps) {
+export function QuickQuiz({ questions, skillId, skillName, userId, className }: QuickQuizProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [showEvaluator, setShowEvaluator] = useState(false);
-  const [answers, setAnswers] = useState<ExamAnswer[]>([]);
+  const [answers, setAnswers] = useState<any[]>([]);
   const [startTime] = useState(Date.now());
   const questionStartTime = useRef(Date.now());
 
+  // Handle empty questions
+  if (!questions || questions.length === 0) {
+    return (
+      <div className={cn('space-y-4', className)}>
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-purple-500/10">
+            <Brain className="w-5 h-5 text-purple-500" />
+          </div>
+          <div>
+            <h3 className="font-semibold">Examen</h3>
+            <p className="text-sm text-muted-foreground">
+              Valida tu conocimiento
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12">
+              <AlertCircle className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium">No hay preguntas disponibles</h3>
+              <p className="text-muted-foreground mt-2">
+                Usa el Agent Quiz Generator en la pestaña Agentes IA para generar preguntas
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const question = questions[currentQuestion];
-  const isCorrect = selectedAnswer === question?.correctAnswer;
+  const options = Array.isArray(question?.options) ? question.options : [];
+  const isCorrect = selectedAnswer === question?.correct_answer;
 
   const handleSelectAnswer = (index: number) => {
     if (showResult) return;
@@ -47,13 +81,12 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
     setShowResult(true);
 
     const timeToAnswer = Math.round((Date.now() - questionStartTime.current) / 1000);
-    const isAnswerCorrect = selectedAnswer === question.correctAnswer;
+    const isAnswerCorrect = selectedAnswer === question.correct_answer;
 
     if (isAnswerCorrect) {
       setScore(prev => prev + 1);
     }
 
-    // Record answer
     setAnswers(prev => [...prev, {
       questionId: question.id,
       selectedOption: selectedAnswer,
@@ -88,31 +121,20 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
     setShowEvaluator(true);
   };
 
-  // Show evaluator agent after completing quiz
   if (showEvaluator) {
-    const examResult: ExamResult = {
-      id: `exam-${Date.now()}`,
-      skillId,
-      score,
-      totalQuestions: questions.length,
-      correctAnswers: score,
-      timeSpent: Math.round((Date.now() - startTime) / 1000),
-      completedAt: new Date(),
-      answers,
-      feedback: {
-        overallGrade: '',
-        percentage: 0,
-        strengths: [],
-        areasToImprove: [],
-        recommendations: [],
-        personalizedMessage: '',
-      },
-    };
-
     return (
       <EvaluatorAgent
-        examResult={examResult}
+        userId={userId}
+        skillId={skillId}
         skillName={skillName}
+        examData={{
+          score,
+          totalQuestions: questions.length,
+          correctAnswers: score,
+          timeSpent: Math.round((Date.now() - startTime) / 1000),
+          answers,
+          questionsData: questions,
+        }}
         className={className}
       />
     );
@@ -127,15 +149,14 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
 
     return (
       <div className={cn('space-y-4', className)}>
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-purple-500/10">
             <Brain className="w-5 h-5 text-purple-500" />
           </div>
           <div>
-            <h3 className="font-semibold">Quiz Completado</h3>
+            <h3 className="font-semibold">Examen Completado</h3>
             <p className="text-sm text-muted-foreground">
-              Examen finalizado - Revisa tus resultados
+              Revisa tus resultados
             </p>
           </div>
         </div>
@@ -143,7 +164,6 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
         <Card className="overflow-hidden">
           <CardContent className="pt-6">
             <div className="text-center space-y-6">
-              {/* Score display */}
               <div className="relative">
                 <div className={cn(
                   'w-32 h-32 mx-auto rounded-full flex items-center justify-center',
@@ -164,7 +184,6 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
                 </div>
               </div>
 
-              {/* Stats grid */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl bg-muted/50">
                   <CheckCircle2 className="w-6 h-6 mx-auto text-green-500 mb-2" />
@@ -183,14 +202,13 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
                 <button
                   onClick={handleShowEvaluation}
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium hover:opacity-90 transition-all shadow-lg shadow-amber-500/20"
                 >
                   <Zap className="w-5 h-5" />
-                  Ver Evaluacion Detallada
+                  Ver Evaluacion AI
                 </button>
                 <button
                   onClick={handleRestart}
@@ -209,16 +227,15 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
 
   return (
     <div className={cn('space-y-4', className)}>
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-purple-500/10">
             <Brain className="w-5 h-5 text-purple-500" />
           </div>
           <div>
-            <h3 className="font-semibold">Quiz Rapido</h3>
+            <h3 className="font-semibold">Examen</h3>
             <p className="text-sm text-muted-foreground">
-              Valida tu conocimiento
+              {questions.length} preguntas
             </p>
           </div>
         </div>
@@ -227,7 +244,6 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
         </Badge>
       </div>
 
-      {/* Progress dots */}
       <div className="flex items-center gap-2">
         {questions.map((_, idx) => (
           <div
@@ -244,10 +260,8 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
         ))}
       </div>
 
-      {/* Question card */}
       <Card className="overflow-hidden">
         <CardContent className="pt-6 space-y-6">
-          {/* Question */}
           <div>
             <Badge className="mb-3">Pregunta {currentQuestion + 1}</Badge>
             <h4 className="text-lg font-medium leading-relaxed">
@@ -255,11 +269,10 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
             </h4>
           </div>
 
-          {/* Options */}
           <div className="space-y-3">
-            {question.options.map((option, idx) => {
+            {options.map((option: string, idx: number) => {
               const isSelected = selectedAnswer === idx;
-              const isCorrectOption = idx === question.correctAnswer;
+              const isCorrectOption = idx === question.correct_answer;
 
               return (
                 <button
@@ -301,7 +314,6 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
             })}
           </div>
 
-          {/* Explanation */}
           {showResult && question.explanation && (
             <div className={cn(
               'p-4 rounded-lg',
@@ -319,7 +331,6 @@ export function QuickQuiz({ questions, skillId, skillName, className }: QuickQui
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex justify-end gap-3 pt-2">
             {!showResult ? (
               <button

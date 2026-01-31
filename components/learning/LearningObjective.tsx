@@ -1,6 +1,6 @@
 'use client';
 
-import { LearningObjective as LearningObjectiveType } from '@/types/skill';
+import { LearningObjective as LearningObjectiveType } from '@/types/database';
 import { Card, CardContent } from '@/components/ui/card';
 import { Target, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,6 @@ export function LearningObjective({ objective, className }: LearningObjectivePro
       'bg-gradient-to-br from-primary/5 via-background to-background',
       className
     )}>
-      {/* Decorative elements */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-bl-full" />
       <div className="absolute -bottom-2 -left-2 w-16 h-16 bg-gradient-to-tr from-primary/10 to-transparent rounded-full blur-xl" />
 

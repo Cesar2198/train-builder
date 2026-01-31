@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { QuizGeneratorInput, QuizQuestion, SkillDifficulty } from '@/types/skill';
+import { SkillDifficulty } from '@/types/database';
 import { cn } from '@/lib/utils';
 import {
   Brain,
@@ -14,13 +14,16 @@ import {
   Shuffle,
   Settings2,
   Zap,
-  RefreshCcw,
+  AlertCircle,
   Target
 } from 'lucide-react';
 
 interface QuizGeneratorAgentProps {
-  input: QuizGeneratorInput;
-  onQuizGenerated?: (questions: QuizQuestion[]) => void;
+  skillId: string;
+  skillName: string;
+  difficulty: SkillDifficulty;
+  topics?: string[];
+  onQuizGenerated?: () => void;
   className?: string;
 }
 
@@ -31,87 +34,79 @@ const difficultyConfig: Record<SkillDifficulty, { complexity: string; timePerQue
   expert: { complexity: 'Problemas avanzados y decision-making', timePerQuestion: 90 },
 };
 
-export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGeneratorAgentProps) {
+export function QuizGeneratorAgent({
+  skillId,
+  skillName,
+  difficulty,
+  topics = [],
+  onQuizGenerated,
+  className
+}: QuizGeneratorAgentProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
-  const [generatedQuiz, setGeneratedQuiz] = useState<QuizQuestion[] | null>(null);
-  const [questionCount, setQuestionCount] = useState(input.numberOfQuestions);
+  const [generatedQuiz, setGeneratedQuiz] = useState<any[] | null>(null);
+  const [questionCount, setQuestionCount] = useState(10);
+  const [error, setError] = useState<string | null>(null);
 
   const generateQuiz = async () => {
     setIsGenerating(true);
     setProgress(0);
     setGeneratedQuiz(null);
+    setError(null);
 
     const steps = [
-      { label: 'Analizando nivel de dificultad...', progress: 10 },
-      { label: 'Seleccionando temas relevantes...', progress: 25 },
-      { label: 'Generando banco de preguntas...', progress: 45 },
-      { label: 'Creando opciones de respuesta...', progress: 65 },
-      { label: 'Validando coherencia y dificultad...', progress: 80 },
-      { label: 'Optimizando orden y balance...', progress: 95 },
-      { label: 'Quiz listo!', progress: 100 },
+      { label: 'Conectando con AI...', progress: 10 },
+      { label: 'Analizando nivel de dificultad...', progress: 25 },
+      { label: 'Generando preguntas personalizadas...', progress: 50 },
+      { label: 'Validando respuestas...', progress: 75 },
+      { label: 'Guardando en base de datos...', progress: 90 },
     ];
 
-    for (const step of steps) {
+    for (const step of steps.slice(0, 2)) {
       setCurrentStep(step.label);
       setProgress(step.progress);
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 400));
     }
 
-    // Generate dynamic questions based on topics
-    const questions: QuizQuestion[] = [];
-    const questionTemplates = [
-      {
-        template: 'Cual es el principal beneficio de {topic}?',
-        options: ['Mejora la eficiencia', 'Reduce costos', 'Aumenta la calidad', 'Todas las anteriores'],
-        correct: 3,
-      },
-      {
-        template: 'En que situacion es mas apropiado aplicar {topic}?',
-        options: ['Proyectos pequenos', 'Equipos distribuidos', 'Entregas frecuentes', 'Depende del contexto'],
-        correct: 3,
-      },
-      {
-        template: 'Cual de los siguientes NO es una caracteristica de {topic}?',
-        options: ['Iterativo', 'Rigido', 'Colaborativo', 'Adaptable'],
-        correct: 1,
-      },
-      {
-        template: 'Que rol es fundamental para implementar {topic} correctamente?',
-        options: ['Solo el lider', 'Todo el equipo', 'Solo tecnicos', 'Stakeholders externos'],
-        correct: 1,
-      },
-      {
-        template: 'Cual es el primer paso para adoptar {topic}?',
-        options: ['Comprar herramientas', 'Capacitar al equipo', 'Entender el contexto actual', 'Cambiar la estructura'],
-        correct: 2,
-      },
-    ];
+    try {
+      setCurrentStep(steps[2].label);
+      setProgress(steps[2].progress);
 
-    for (let i = 0; i < questionCount; i++) {
-      const templateIdx = i % questionTemplates.length;
-      const template = questionTemplates[templateIdx];
-      const topic = input.topics[i % input.topics.length] || 'esta practica';
-
-      questions.push({
-        id: `quiz-${Date.now()}-${i}`,
-        question: template.template.replace('{topic}', topic),
-        options: [...template.options].sort(() => Math.random() - 0.5), // Shuffle options
-        correctAnswer: template.correct,
-        explanation: `Esta pregunta evalua tu comprension de ${topic} en el contexto de ${input.difficulty}.`,
+      const response = await fetch('/api/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skillId,
+          skillName,
+          difficulty,
+          numberOfQuestions: questionCount,
+          topics,
+        }),
       });
+
+      setCurrentStep(steps[3].label);
+      setProgress(steps[3].progress);
+
+      if (!response.ok) {
+        throw new Error('Error al generar quiz');
+      }
+
+      const data = await response.json();
+
+      setCurrentStep(steps[4].label);
+      setProgress(100);
+
+      setGeneratedQuiz(data.questions);
+      onQuizGenerated?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setIsGenerating(false);
     }
-
-    // Shuffle questions
-    questions.sort(() => Math.random() - 0.5);
-
-    setGeneratedQuiz(questions);
-    setIsGenerating(false);
-    onQuizGenerated?.(questions);
   };
 
-  const config = difficultyConfig[input.difficulty];
+  const config = difficultyConfig[difficulty];
 
   return (
     <Card className={cn('overflow-hidden', className)}>
@@ -129,7 +124,7 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Genera examenes dinamicos y adaptativos
+                Genera examenes adaptativos con OpenAI
               </p>
             </div>
           </div>
@@ -156,6 +151,7 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
                   <button
                     key={num}
                     onClick={() => setQuestionCount(num)}
+                    disabled={isGenerating}
                     className={cn(
                       'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
                       questionCount === num
@@ -181,7 +177,7 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
             <div className="flex items-start gap-3">
               <Target className="w-5 h-5 text-cyan-500 mt-0.5" />
               <div>
-                <p className="font-medium">Nivel: {input.difficulty}</p>
+                <p className="font-medium">Nivel: {difficulty}</p>
                 <p className="text-sm text-muted-foreground">{config.complexity}</p>
               </div>
             </div>
@@ -189,11 +185,11 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
         </div>
 
         {/* Topics */}
-        {input.topics.length > 0 && (
+        {topics.length > 0 && (
           <div className="space-y-2">
             <p className="text-sm font-medium">Temas a evaluar:</p>
             <div className="flex flex-wrap gap-2">
-              {input.topics.map((topic, idx) => (
+              {topics.map((topic, idx) => (
                 <Badge key={idx} variant="secondary" className="gap-1">
                   <HelpCircle className="w-3 h-3" />
                   {topic}
@@ -214,21 +210,29 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
           </div>
         )}
 
+        {/* Error state */}
+        {error && (
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600">
+            <AlertCircle className="w-5 h-5" />
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+
         {/* Generated quiz preview */}
         {generatedQuiz && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle2 className="w-5 h-5" />
-                <span className="font-medium">Examen generado</span>
+                <span className="font-medium">Examen generado y guardado</span>
               </div>
               <Badge variant="outline">{generatedQuiz.length} preguntas</Badge>
             </div>
 
             <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-              {generatedQuiz.map((question, idx) => (
+              {generatedQuiz.map((question: any, idx: number) => (
                 <div
-                  key={question.id}
+                  key={idx}
                   className="flex items-start gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
                   <div className="w-6 h-6 rounded-full bg-cyan-500/10 flex items-center justify-center text-xs font-medium text-cyan-600 shrink-0">
@@ -238,6 +242,10 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
                 </div>
               ))}
             </div>
+
+            <p className="text-sm text-muted-foreground text-center">
+              Recarga la pagina o ve a la pestaña Examen para realizar el quiz
+            </p>
           </div>
         )}
 
@@ -255,7 +263,7 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
           {isGenerating ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Generando examen...
+              Generando con AI...
             </>
           ) : generatedQuiz ? (
             <>
@@ -265,7 +273,7 @@ export function QuizGeneratorAgent({ input, onQuizGenerated, className }: QuizGe
           ) : (
             <>
               <Zap className="w-5 h-5" />
-              Generar examen dinamico
+              Generar examen con AI
             </>
           )}
         </button>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Skill, SkillContent, Badge as BadgeType } from '@/types/skill';
+import { useState, useCallback } from 'react';
+import { SkillWithContent } from '@/types/database';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { ResourceList } from './ResourceCard';
 import { QuickQuiz } from './QuickQuiz';
 import { ContentGeneratorAgent, QuizGeneratorAgent } from '@/components/agents';
 import { BadgeShowcase } from '@/components/badges';
+import { useBadges } from '@/hooks';
 import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -18,85 +19,55 @@ import {
   Brain,
   Clock,
   Play,
-  Sparkles,
-  Bot,
+  Wand2,
   Award,
-  Cpu,
-  Wand2
+  Bot,
+  AlertCircle,
+  RefreshCcw
 } from 'lucide-react';
 
 interface LearningPathProps {
-  skill: Skill;
-  content: SkillContent;
+  skill: SkillWithContent;
+  userId: string;
   onBack?: () => void;
+  onRefresh?: () => void;
   className?: string;
 }
 
-// Sample badges for demonstration
-const sampleBadges: BadgeType[] = [
-  {
-    id: 'badge-1',
-    name: 'Oro en Creacion de HUs',
-    description: 'Obtuviste 85% en el examen',
-    level: 'gold',
-    icon: 'Award',
-    skillId: 'hu-creation',
-    requiredScore: 80,
-    unlockedAt: new Date('2024-01-15'),
-    status: 'unlocked',
-  },
-  {
-    id: 'badge-2',
-    name: 'Plata en React Hooks',
-    description: 'Obtuviste 75% en el examen',
-    level: 'silver',
-    icon: 'Award',
-    skillId: 'react-hooks',
-    requiredScore: 70,
-    unlockedAt: new Date('2024-01-10'),
-    status: 'unlocked',
-  },
-  {
-    id: 'badge-3',
-    name: 'Diamante en Figma',
-    description: 'Obtuviste 98% en el examen',
-    level: 'diamond',
-    icon: 'Award',
-    skillId: 'figma-basics',
-    requiredScore: 95,
-    unlockedAt: new Date('2024-01-20'),
-    status: 'unlocked',
-  },
-  {
-    id: 'badge-4',
-    name: 'Bronce en Docker',
-    description: 'Por desbloquear',
-    level: 'bronze',
-    icon: 'Award',
-    skillId: 'docker-containers',
-    requiredScore: 60,
-    status: 'locked',
-  },
-  {
-    id: 'badge-5',
-    name: 'Platino en SQL',
-    description: 'Por desbloquear',
-    level: 'platinum',
-    icon: 'Award',
-    skillId: 'sql-fundamentals',
-    requiredScore: 90,
-    status: 'locked',
-  },
-];
-
-export function LearningPath({ skill, content, onBack, className }: LearningPathProps) {
+export function LearningPath({ skill, userId, onBack, onRefresh, className }: LearningPathProps) {
   const [activeTab, setActiveTab] = useState('lessons');
+  const { badges, refetch: refetchBadges } = useBadges(userId);
+
+  const handleContentGenerated = useCallback(() => {
+    onRefresh?.();
+  }, [onRefresh]);
+
+  const handleQuizGenerated = useCallback(() => {
+    onRefresh?.();
+  }, [onRefresh]);
+
+  const objective = skill.learning_objectives?.[0];
+  const hasLessons = skill.micro_lessons?.length > 0;
+  const hasQuestions = skill.quiz_questions?.length > 0;
+  const hasVideos = skill.video_resources?.length > 0;
+
+  // Transform badges for showcase
+  const skillBadges = badges.map(b => ({
+    id: b.id,
+    name: b.name,
+    description: b.description,
+    level: b.level,
+    icon: 'Award',
+    skillId: b.skill_id,
+    requiredScore: 60,
+    unlockedAt: new Date(b.unlocked_at),
+    status: 'unlocked' as const,
+  }));
 
   return (
     <div className={cn('space-y-8', className)}>
       {/* Header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-background to-background border p-6 md:p-8">
-        {/* Decorative background */}
         <div className="absolute inset-0 bg-grid-white/10" />
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-3xl" />
 
@@ -120,6 +91,15 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
                 <Badge variant="secondary" className="capitalize">
                   {skill.difficulty}
                 </Badge>
+                {onRefresh && (
+                  <button
+                    onClick={onRefresh}
+                    className="p-1 rounded hover:bg-muted transition-colors"
+                    title="Recargar contenido"
+                  >
+                    <RefreshCcw className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                )}
               </div>
 
               <h1 className="text-3xl md:text-4xl font-bold">
@@ -133,23 +113,23 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
               )}
 
               <div className="flex flex-wrap items-center gap-4 pt-2">
-                {skill.estimatedTime && (
+                {skill.estimated_time && (
                   <div className="flex items-center gap-1.5 text-sm">
                     <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span>{skill.estimatedTime}</span>
+                    <span>{skill.estimated_time}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-1.5 text-sm">
                   <BookOpen className="w-4 h-4 text-muted-foreground" />
-                  <span>{content.microLessons.length} lecciones</span>
+                  <span>{skill.micro_lessons?.length || 0} lecciones</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-sm">
                   <Play className="w-4 h-4 text-muted-foreground" />
-                  <span>{content.videoResources.length} videos</span>
+                  <span>{skill.video_resources?.length || 0} videos</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-sm">
                   <Brain className="w-4 h-4 text-muted-foreground" />
-                  <span>{content.quiz.length} preguntas</span>
+                  <span>{skill.quiz_questions?.length || 0} preguntas</span>
                 </div>
               </div>
             </div>
@@ -174,14 +154,14 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="8"
-                    strokeDasharray={`${(skill.progress || 0) * 3.02} 302`}
+                    strokeDasharray={`${(skill.user_progress?.progress_percentage || 0) * 3.02} 302`}
                     strokeLinecap="round"
                     className="text-primary transition-all duration-500"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold">{skill.progress || 0}%</span>
-                  <span className="text-xs text-muted-foreground">completado</span>
+                  <span className="text-2xl font-bold">{skill.user_progress?.progress_percentage || 0}%</span>
+                  <span className="text-xs text-muted-foreground">progreso</span>
                 </div>
               </div>
             </div>
@@ -190,7 +170,21 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
       </div>
 
       {/* Learning Objective */}
-      <LearningObjective objective={content.objective} />
+      {objective ? (
+        <LearningObjective objective={objective} />
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                No hay objetivo de aprendizaje definido.
+                Usa el Agent Content Generator para crear uno.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI Agents Section */}
       <Card className="overflow-hidden border-2 border-dashed border-primary/20">
@@ -203,67 +197,55 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
               <CardTitle className="flex items-center gap-2">
                 Agentes de IA
                 <Badge className="bg-gradient-to-r from-violet-500 to-cyan-500 text-white">
-                  3 Activos
+                  Dinamicos
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Asistentes inteligentes para personalizar tu aprendizaje
+                Genera contenido y examenes personalizados con OpenAI
               </p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="pt-6">
           <div className="grid md:grid-cols-3 gap-4">
-            {/* Content Generator */}
-            <div className="p-4 rounded-xl border-2 hover:border-violet-500/50 transition-colors group">
+            <div className="p-4 rounded-xl border-2 hover:border-violet-500/50 transition-colors">
               <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-violet-500/10 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-5 h-5 text-violet-500" />
+                <div className="p-2 rounded-lg bg-violet-500/10">
+                  <Wand2 className="w-5 h-5 text-violet-500" />
                 </div>
-                <div className="flex-1">
+                <div>
                   <h4 className="font-semibold text-violet-600">Content Generator</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Genera contenido educativo dinamico y personalizado
+                    Genera lecciones y contenido educativo
                   </p>
-                  <Badge variant="outline" className="mt-2 text-xs">
-                    Activo
-                  </Badge>
                 </div>
               </div>
             </div>
 
-            {/* Quiz Generator */}
-            <div className="p-4 rounded-xl border-2 hover:border-cyan-500/50 transition-colors group">
+            <div className="p-4 rounded-xl border-2 hover:border-cyan-500/50 transition-colors">
               <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-cyan-500/10 group-hover:scale-110 transition-transform">
+                <div className="p-2 rounded-lg bg-cyan-500/10">
                   <Brain className="w-5 h-5 text-cyan-500" />
                 </div>
-                <div className="flex-1">
+                <div>
                   <h4 className="font-semibold text-cyan-600">Quiz Generator</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Crea examenes adaptativos segun tu nivel
+                    Crea examenes adaptativos
                   </p>
-                  <Badge variant="outline" className="mt-2 text-xs">
-                    Activo
-                  </Badge>
                 </div>
               </div>
             </div>
 
-            {/* Evaluator */}
-            <div className="p-4 rounded-xl border-2 hover:border-amber-500/50 transition-colors group">
+            <div className="p-4 rounded-xl border-2 hover:border-amber-500/50 transition-colors">
               <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/10 group-hover:scale-110 transition-transform">
+                <div className="p-2 rounded-lg bg-amber-500/10">
                   <Award className="w-5 h-5 text-amber-500" />
                 </div>
-                <div className="flex-1">
+                <div>
                   <h4 className="font-semibold text-amber-600">Evaluator</h4>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Analiza resultados y otorga badges
+                    Evalua y otorga badges
                   </p>
-                  <Badge variant="outline" className="mt-2 text-xs">
-                    Activo
-                  </Badge>
                 </div>
               </div>
             </div>
@@ -280,6 +262,7 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
           >
             <BookOpen className="w-4 h-4 mr-2" />
             Lecciones
+            {hasLessons && <Badge variant="secondary" className="ml-2">{skill.micro_lessons.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger
             value="resources"
@@ -287,6 +270,7 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
           >
             <Play className="w-4 h-4 mr-2" />
             Recursos
+            {hasVideos && <Badge variant="secondary" className="ml-2">{skill.video_resources.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger
             value="quiz"
@@ -294,6 +278,7 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
           >
             <Brain className="w-4 h-4 mr-2" />
             Examen
+            {hasQuestions && <Badge variant="secondary" className="ml-2">{skill.quiz_questions.length}</Badge>}
           </TabsTrigger>
           <TabsTrigger
             value="agents"
@@ -308,47 +293,82 @@ export function LearningPath({ skill, content, onBack, className }: LearningPath
           >
             <Award className="w-4 h-4 mr-2" />
             Badges
+            {skillBadges.length > 0 && <Badge variant="secondary" className="ml-2">{skillBadges.length}</Badge>}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lessons" className="mt-6">
-          <MicroLessonList lessons={content.microLessons} />
+          {hasLessons ? (
+            <MicroLessonList
+              lessons={skill.micro_lessons}
+              userId={userId}
+              skillId={skill.id}
+            />
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <BookOpen className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium">No hay lecciones disponibles</h3>
+                  <p className="text-muted-foreground mt-2">
+                    Ve a la pestaña Agentes IA y usa el Content Generator para crear lecciones
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="resources" className="mt-6">
-          <ResourceList resources={content.videoResources} />
+          {hasVideos ? (
+            <ResourceList resources={skill.video_resources} />
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-12">
+                  <Play className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium">No hay recursos de video</h3>
+                  <p className="text-muted-foreground mt-2">
+                    Los recursos se generaran automaticamente con el Content Generator
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="quiz" className="mt-6">
           <QuickQuiz
-            questions={content.quiz}
+            questions={skill.quiz_questions || []}
             skillId={skill.id}
             skillName={skill.name}
+            userId={userId}
           />
         </TabsContent>
 
         <TabsContent value="agents" className="mt-6 space-y-6">
           <ContentGeneratorAgent
-            input={{
-              skillId: skill.id,
-              skillName: skill.name,
-              difficulty: skill.difficulty,
-              category: skill.category,
-            }}
+            skillId={skill.id}
+            skillName={skill.name}
+            difficulty={skill.difficulty}
+            category={skill.category}
+            onContentGenerated={handleContentGenerated}
           />
 
           <QuizGeneratorAgent
-            input={{
-              skillId: skill.id,
-              difficulty: skill.difficulty,
-              numberOfQuestions: 10,
-              topics: content.microLessons.map(l => l.title),
-            }}
+            skillId={skill.id}
+            skillName={skill.name}
+            difficulty={skill.difficulty}
+            topics={skill.micro_lessons?.map(l => l.title) || []}
+            onQuizGenerated={handleQuizGenerated}
           />
         </TabsContent>
 
         <TabsContent value="badges" className="mt-6">
-          <BadgeShowcase badges={sampleBadges} />
+          <BadgeShowcase
+            badges={skillBadges}
+            title="Mis Badges"
+          />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { MicroLesson as MicroLessonType } from '@/types/skill';
+import { useState, useEffect } from 'react';
+import { MicroLesson } from '@/types/database';
 import {
   Accordion,
   AccordionContent,
@@ -9,22 +9,41 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { createClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
-import { BookOpen, CheckCircle2, Circle, Clock, Play } from 'lucide-react';
+import { BookOpen, CheckCircle2, Circle, Clock, Play, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface MicroLessonProps {
-  lessons: MicroLessonType[];
-  onComplete?: (lessonId: string) => void;
+  lessons: MicroLesson[];
+  userId: string;
+  skillId: string;
   className?: string;
 }
 
-export function MicroLessonList({ lessons, onComplete, className }: MicroLessonProps) {
-  const [completedLessons, setCompletedLessons] = useState<Set<string>>(
-    new Set(lessons.filter(l => l.completed).map(l => l.id))
-  );
+export function MicroLessonList({ lessons, userId, skillId, className }: MicroLessonProps) {
+  const [completedLessons, setCompletedLessons] = useState<Set<string>>(new Set());
+  const supabase = createClient();
 
-  const handleComplete = (lessonId: string) => {
+  useEffect(() => {
+    // Fetch completed lessons from user_progress
+    const fetchProgress = async () => {
+      const { data } = await supabase
+        .from('user_progress')
+        .select('lessons_completed')
+        .eq('user_id', userId)
+        .eq('skill_id', skillId)
+        .single();
+
+      const progressData = data as { lessons_completed?: string[] } | null;
+      if (progressData?.lessons_completed) {
+        setCompletedLessons(new Set(progressData.lessons_completed));
+      }
+    };
+    fetchProgress();
+  }, [userId, skillId, supabase]);
+
+  const handleComplete = async (lessonId: string) => {
     const newCompleted = new Set(completedLessons);
     if (newCompleted.has(lessonId)) {
       newCompleted.delete(lessonId);
@@ -32,7 +51,18 @@ export function MicroLessonList({ lessons, onComplete, className }: MicroLessonP
       newCompleted.add(lessonId);
     }
     setCompletedLessons(newCompleted);
-    onComplete?.(lessonId);
+
+    // Update in database
+    const newProgress = Math.round((newCompleted.size / lessons.length) * 100);
+    const progressData = {
+      user_id: userId,
+      skill_id: skillId,
+      progress_percentage: newProgress,
+      lessons_completed: Array.from(newCompleted),
+    };
+    await supabase
+      .from('user_progress')
+      .upsert(progressData as never, { onConflict: 'user_id,skill_id' });
   };
 
   const progress = (completedLessons.size / lessons.length) * 100;
@@ -81,7 +111,6 @@ export function MicroLessonList({ lessons, onComplete, className }: MicroLessonP
             >
               <AccordionTrigger className="px-4 py-3 hover:no-underline">
                 <div className="flex items-center gap-3 flex-1">
-                  {/* Step indicator */}
                   <div className={cn(
                     'flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all',
                     isCompleted
@@ -96,12 +125,17 @@ export function MicroLessonList({ lessons, onComplete, className }: MicroLessonP
                   </div>
 
                   <div className="flex-1 text-left">
-                    <h4 className={cn(
-                      'font-medium transition-colors',
-                      isCompleted && 'text-green-600'
-                    )}>
-                      {lesson.title}
-                    </h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className={cn(
+                        'font-medium transition-colors',
+                        isCompleted && 'text-green-600'
+                      )}>
+                        {lesson.title}
+                      </h4>
+                      {lesson.is_ai_generated && (
+                        <Sparkles className="w-3 h-3 text-violet-500" />
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground line-clamp-1">
                       {lesson.description}
                     </p>
@@ -159,12 +193,12 @@ export function MicroLessonList({ lessons, onComplete, className }: MicroLessonP
                     <div className="flex items-center justify-center py-8 border-2 border-dashed rounded-lg">
                       <div className="text-center">
                         <Play className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">Contenido interactivo proximamente</p>
+                        <p className="text-muted-foreground">Contenido no disponible</p>
+                        <p className="text-sm text-muted-foreground">Genera contenido con el Agent Content Generator</p>
                       </div>
                     </div>
                   )}
 
-                  {/* Complete button */}
                   <button
                     onClick={() => handleComplete(lesson.id)}
                     className={cn(

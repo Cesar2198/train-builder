@@ -4,22 +4,23 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ContentGeneratorInput, MicroLesson, SkillDifficulty } from '@/types/skill';
+import { SkillDifficulty, SkillCategory } from '@/types/database';
 import { cn } from '@/lib/utils';
 import {
   Sparkles,
-  Brain,
   Loader2,
   CheckCircle2,
-  BookOpen,
-  Lightbulb,
   Zap,
-  RefreshCcw
+  RefreshCcw,
+  AlertCircle
 } from 'lucide-react';
 
 interface ContentGeneratorAgentProps {
-  input: ContentGeneratorInput;
-  onContentGenerated?: (lessons: MicroLesson[]) => void;
+  skillId: string;
+  skillName: string;
+  difficulty: SkillDifficulty;
+  category: SkillCategory;
+  onContentGenerated?: () => void;
   className?: string;
 }
 
@@ -30,139 +31,76 @@ const difficultyTemplates: Record<SkillDifficulty, { topics: number; depth: stri
   expert: { topics: 6, depth: 'Optimizacion, edge cases y liderazgo tecnico' },
 };
 
-export function ContentGeneratorAgent({ input, onContentGenerated, className }: ContentGeneratorAgentProps) {
+export function ContentGeneratorAgent({
+  skillId,
+  skillName,
+  difficulty,
+  category,
+  onContentGenerated,
+  className
+}: ContentGeneratorAgentProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
-  const [generatedContent, setGeneratedContent] = useState<MicroLesson[] | null>(null);
+  const [generatedContent, setGeneratedContent] = useState<any | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const generateContent = async () => {
     setIsGenerating(true);
     setProgress(0);
     setGeneratedContent(null);
+    setError(null);
 
     const steps = [
-      { label: 'Analizando skill y nivel de dificultad...', progress: 15 },
-      { label: 'Investigando mejores practicas...', progress: 30 },
-      { label: 'Estructurando ruta de aprendizaje...', progress: 50 },
-      { label: 'Generando contenido teorico...', progress: 70 },
-      { label: 'Creando ejemplos practicos...', progress: 85 },
-      { label: 'Finalizando y optimizando...', progress: 100 },
+      { label: 'Conectando con AI...', progress: 10 },
+      { label: 'Analizando skill y nivel de dificultad...', progress: 25 },
+      { label: 'Generando estructura del contenido...', progress: 45 },
+      { label: 'Creando lecciones personalizadas...', progress: 70 },
+      { label: 'Guardando en base de datos...', progress: 90 },
     ];
 
-    for (const step of steps) {
+    // Simulate progress for UX
+    for (const step of steps.slice(0, 2)) {
       setCurrentStep(step.label);
       setProgress(step.progress);
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    // Simulated generated content
-    const template = difficultyTemplates[input.difficulty];
-    const lessons: MicroLesson[] = [
-      {
-        id: `gen-${Date.now()}-1`,
-        title: `Fundamentos de ${input.skillName}`,
-        description: `Introduccion completa a los conceptos base de ${input.skillName}`,
-        duration: '20 min',
-        completed: false,
-        content: `
-## Introduccion a ${input.skillName}
+    try {
+      setCurrentStep(steps[2].label);
+      setProgress(steps[2].progress);
 
-Este modulo te proporcionara una base solida en **${input.skillName}**.
-
-### Objetivos
-- Comprender los conceptos fundamentales
-- Identificar casos de uso comunes
-- Aplicar las mejores practicas
-
-### Conceptos Clave
-
-| Concepto | Descripcion |
-|----------|-------------|
-| Definicion | Que es y para que sirve |
-| Contexto | Donde y cuando aplicarlo |
-| Beneficios | Ventajas principales |
-
-\`\`\`
-// Ejemplo basico
-const ejemplo = {
-  skill: "${input.skillName}",
-  nivel: "${input.difficulty}",
-  categoria: "${input.category}"
-};
-\`\`\`
-        `,
-      },
-      {
-        id: `gen-${Date.now()}-2`,
-        title: `Practicas Esenciales`,
-        description: `Tecnicas y metodologias clave para dominar ${input.skillName}`,
-        duration: '25 min',
-        completed: false,
-        content: `
-## Practicas Esenciales
-
-${template.depth}
-
-### Metodologia Recomendada
-
-1. **Preparacion**: Entiende el contexto
-2. **Ejecucion**: Aplica paso a paso
-3. **Revision**: Valida resultados
-4. **Iteracion**: Mejora continua
-
-### Tips de Expertos
-
-> "La practica constante es la clave del dominio" - Experto en ${input.category}
-        `,
-      },
-      {
-        id: `gen-${Date.now()}-3`,
-        title: `Casos de Estudio`,
-        description: `Analisis de escenarios reales aplicando ${input.skillName}`,
-        duration: '30 min',
-        completed: false,
-        content: `
-## Casos de Estudio Reales
-
-### Caso 1: Implementacion en Startup
-
-**Contexto**: Equipo de 5 personas, metodologia agil
-
-**Solucion aplicada**:
-- Fase 1: Diagnostico inicial
-- Fase 2: Implementacion gradual
-- Fase 3: Medicion de resultados
-
-**Resultados**: 40% mejora en productividad
-
-### Caso 2: Empresa Enterprise
-
-**Contexto**: +100 empleados, procesos establecidos
-
-**Desafios**:
-- Resistencia al cambio
-- Integracion con sistemas legacy
-
-**Leccion aprendida**: La comunicacion es clave
-        `,
-      },
-    ];
-
-    // Add more lessons based on difficulty
-    if (template.topics >= 4) {
-      lessons.push({
-        id: `gen-${Date.now()}-4`,
-        title: `Integracion y Herramientas`,
-        description: `Ecosistema de herramientas para ${input.skillName}`,
-        duration: '25 min',
-        completed: false,
+      const response = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skillId,
+          skillName,
+          difficulty,
+          category,
+          numberOfLessons: difficultyTemplates[difficulty].topics,
+        }),
       });
-    }
 
-    setGeneratedContent(lessons);
-    setIsGenerating(false);
-    onContentGenerated?.(lessons);
+      setCurrentStep(steps[3].label);
+      setProgress(steps[3].progress);
+
+      if (!response.ok) {
+        throw new Error('Error al generar contenido');
+      }
+
+      const data = await response.json();
+
+      setCurrentStep(steps[4].label);
+      setProgress(100);
+
+      setGeneratedContent(data.content);
+      onContentGenerated?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -181,7 +119,7 @@ ${template.depth}
                 </Badge>
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
-                Genera contenido educativo dinamico y personalizado
+                Genera contenido educativo dinamico con OpenAI
               </p>
             </div>
           </div>
@@ -197,19 +135,19 @@ ${template.depth}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-3 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground">Skill</p>
-            <p className="font-medium truncate">{input.skillName}</p>
+            <p className="font-medium truncate">{skillName}</p>
           </div>
           <div className="p-3 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground">Dificultad</p>
-            <p className="font-medium capitalize">{input.difficulty}</p>
+            <p className="font-medium capitalize">{difficulty}</p>
           </div>
           <div className="p-3 rounded-lg bg-muted/50">
             <p className="text-xs text-muted-foreground">Categoria</p>
-            <p className="font-medium capitalize">{input.category}</p>
+            <p className="font-medium capitalize">{category}</p>
           </div>
           <div className="p-3 rounded-lg bg-muted/50">
-            <p className="text-xs text-muted-foreground">Temas</p>
-            <p className="font-medium">{difficultyTemplates[input.difficulty].topics} modulos</p>
+            <p className="text-xs text-muted-foreground">Lecciones</p>
+            <p className="font-medium">{difficultyTemplates[difficulty].topics} modulos</p>
           </div>
         </div>
 
@@ -224,18 +162,34 @@ ${template.depth}
           </div>
         )}
 
+        {/* Error state */}
+        {error && (
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600">
+            <AlertCircle className="w-5 h-5" />
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+
         {/* Generated content preview */}
         {generatedContent && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="w-5 h-5" />
-              <span className="font-medium">Contenido generado exitosamente</span>
+              <span className="font-medium">Contenido generado y guardado exitosamente</span>
             </div>
 
-            <div className="space-y-3">
-              {generatedContent.map((lesson, idx) => (
+            {generatedContent.objective && (
+              <div className="p-4 rounded-lg bg-primary/5 border">
+                <p className="text-sm font-medium text-primary">Objetivo de Aprendizaje</p>
+                <p className="text-sm mt-1">{generatedContent.objective.title}</p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Lecciones generadas:</p>
+              {generatedContent.lessons?.map((lesson: any, idx: number) => (
                 <div
-                  key={lesson.id}
+                  key={idx}
                   className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-violet-500/10 flex items-center justify-center text-sm font-medium text-violet-600">
@@ -249,6 +203,10 @@ ${template.depth}
                 </div>
               ))}
             </div>
+
+            <p className="text-sm text-muted-foreground text-center">
+              Recarga la pagina o ve a la pestaña Lecciones para ver el contenido completo
+            </p>
           </div>
         )}
 
@@ -266,7 +224,7 @@ ${template.depth}
           {isGenerating ? (
             <>
               <Loader2 className="w-5 h-5 animate-spin" />
-              Generando contenido...
+              Generando con AI...
             </>
           ) : generatedContent ? (
             <>
@@ -276,7 +234,7 @@ ${template.depth}
           ) : (
             <>
               <Zap className="w-5 h-5" />
-              Generar contenido dinamico
+              Generar contenido con AI
             </>
           )}
         </button>

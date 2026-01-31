@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Skill, SkillCategory, SkillDifficulty } from '@/types/skill';
+import { Skill, SkillCategory, SkillDifficulty } from '@/types/database';
 import {
   FileText,
   Code,
@@ -14,7 +14,8 @@ import {
   Database,
   Clock,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ const iconMap: Record<string, React.ElementType> = {
   Container,
   MessageCircle,
   Database,
+  Users,
 };
 
 const categoryColors: Record<SkillCategory, { bg: string; text: string; border: string }> = {
@@ -52,8 +54,12 @@ const categoryLabels: Record<SkillCategory, string> = {
   data: 'Datos',
 };
 
+interface SkillWithProgress extends Skill {
+  progress?: number;
+}
+
 interface SkillCardProps {
-  skill: Skill;
+  skill: SkillWithProgress;
   onClick?: (skill: Skill) => void;
   className?: string;
 }
@@ -79,7 +85,6 @@ export function SkillCard({ skill, onClick, className }: SkillCardProps) {
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onClick?.(skill)}
     >
-      {/* Gradient overlay on hover */}
       <div
         className={cn(
           'absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent',
@@ -87,7 +92,6 @@ export function SkillCard({ skill, onClick, className }: SkillCardProps) {
         )}
       />
 
-      {/* Completion badge */}
       {isCompleted && (
         <div className="absolute top-3 right-3 z-10">
           <Badge className="bg-green-500 text-white gap-1">
@@ -99,7 +103,6 @@ export function SkillCard({ skill, onClick, className }: SkillCardProps) {
 
       <CardHeader className="pb-3">
         <div className="flex items-start gap-4">
-          {/* Icon container */}
           <div
             className={cn(
               'p-3 rounded-xl transition-all duration-300',
@@ -136,26 +139,21 @@ export function SkillCard({ skill, onClick, className }: SkillCardProps) {
           </CardDescription>
         )}
 
-        {/* Progress section */}
         {skill.progress !== undefined && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Progreso</span>
               <span className="font-medium">{skill.progress}%</span>
             </div>
-            <Progress
-              value={skill.progress}
-              className="h-2"
-            />
+            <Progress value={skill.progress} className="h-2" />
           </div>
         )}
 
-        {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t border-border/50">
-          {skill.estimatedTime && (
+          {skill.estimated_time && (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="w-4 h-4" />
-              <span>{skill.estimatedTime}</span>
+              <span>{skill.estimated_time}</span>
             </div>
           )}
 

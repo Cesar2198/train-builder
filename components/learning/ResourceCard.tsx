@@ -1,10 +1,10 @@
 'use client';
 
-import { VideoResource } from '@/types/skill';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { VideoResource } from '@/types/database';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { Play, Clock, Youtube, Video, ExternalLink } from 'lucide-react';
+import { Play, Youtube, Video, ExternalLink } from 'lucide-react';
 
 interface ResourceCardProps {
   resources: VideoResource[];
@@ -42,8 +42,8 @@ export function ResourceList({ resources, className }: ResourceCardProps) {
       {/* Resources grid */}
       <div className="grid gap-4">
         {resources.map((resource) => {
-          const PlatformIcon = platformIcons[resource.platform];
-          const platformColor = platformColors[resource.platform];
+          const PlatformIcon = platformIcons[resource.platform] || Video;
+          const platformColor = platformColors[resource.platform] || platformColors.custom;
 
           return (
             <Card
@@ -77,21 +77,38 @@ export function ResourceList({ resources, className }: ResourceCardProps) {
                       </Badge>
                     </div>
 
-                    {resource.structure && (
+                    {(resource.structure_intro || resource.structure_demo || resource.structure_conclusion) && (
                       <div className="mt-3 space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="w-16 text-muted-foreground">Intro</span>
-                          <span className="text-foreground">{resource.structure.intro}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="w-16 text-muted-foreground">Demo</span>
-                          <span className="text-foreground">{resource.structure.demo}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="w-16 text-muted-foreground">Cierre</span>
-                          <span className="text-foreground">{resource.structure.conclusion}</span>
-                        </div>
+                        {resource.structure_intro && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="w-16 text-muted-foreground">Intro</span>
+                            <span className="text-foreground">{resource.structure_intro}</span>
+                          </div>
+                        )}
+                        {resource.structure_demo && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="w-16 text-muted-foreground">Demo</span>
+                            <span className="text-foreground">{resource.structure_demo}</span>
+                          </div>
+                        )}
+                        {resource.structure_conclusion && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="w-16 text-muted-foreground">Cierre</span>
+                            <span className="text-foreground">{resource.structure_conclusion}</span>
+                          </div>
+                        )}
                       </div>
+                    )}
+
+                    {resource.url && (
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 mt-2 text-sm text-primary hover:underline"
+                      >
+                        Ver video <ExternalLink className="w-3 h-3" />
+                      </a>
                     )}
                   </div>
                 </div>
