@@ -6,6 +6,84 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Demo content generator when OpenAI is not available
+function generateDemoContent(skillName: string, difficulty: string, numberOfLessons: number) {
+  const lessons = [];
+  const lessonTemplates = [
+    { title: 'Fundamentos', desc: 'Conceptos base y terminologia esencial' },
+    { title: 'Practicas Esenciales', desc: 'Metodologias y tecnicas clave' },
+    { title: 'Casos de Estudio', desc: 'Ejemplos reales y aplicaciones practicas' },
+    { title: 'Herramientas y Recursos', desc: 'Ecosistema de herramientas disponibles' },
+    { title: 'Ejercicios Practicos', desc: 'Actividades para reforzar el aprendizaje' },
+    { title: 'Evaluacion Final', desc: 'Revision y consolidacion de conocimientos' },
+  ];
+
+  for (let i = 0; i < numberOfLessons; i++) {
+    const template = lessonTemplates[i % lessonTemplates.length];
+    lessons.push({
+      title: `${template.title} de ${skillName}`,
+      description: template.desc,
+      duration: `${20 + (i * 5)} min`,
+      content: `
+## ${template.title} de ${skillName}
+
+Este modulo cubre los aspectos fundamentales de **${skillName}** a nivel ${difficulty}.
+
+### Objetivos
+- Comprender los conceptos clave
+- Aplicar las mejores practicas
+- Desarrollar habilidades practicas
+
+### Contenido Principal
+
+| Tema | Descripcion |
+|------|-------------|
+| Introduccion | Contexto y relevancia |
+| Conceptos | Terminologia esencial |
+| Aplicacion | Casos de uso comunes |
+
+### Ejemplo Practico
+
+\`\`\`javascript
+// Ejemplo de codigo para ${skillName}
+const ejemplo = {
+  skill: "${skillName}",
+  nivel: "${difficulty}",
+  modulo: ${i + 1}
+};
+console.log("Aprendiendo:", ejemplo.skill);
+\`\`\`
+
+### Tips Importantes
+
+> "La practica constante es la clave del dominio" - Experto
+
+1. Empieza con lo basico
+2. Practica regularmente
+3. Aplica en proyectos reales
+      `,
+    });
+  }
+
+  return {
+    lessons,
+    objective: {
+      title: `Dominar ${skillName}`,
+      description: `Al finalizar este modulo, seras capaz de aplicar ${skillName} de manera efectiva en proyectos reales, siguiendo las mejores practicas de la industria.`,
+    },
+    videoSuggestions: [
+      {
+        title: `${skillName}: Guia Completa para ${difficulty === 'beginner' ? 'Principiantes' : 'Profesionales'}`,
+        platform: 'youtube',
+        duration: '15:00',
+        structureIntro: 'Introduccion y contexto (0:00 - 3:00)',
+        structureDemo: 'Demostracion practica (3:00 - 12:00)',
+        structureConclusion: 'Resumen y proximos pasos (12:00 - 15:00)',
+      },
+    ],
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { skillId, skillName, difficulty, category, numberOfLessons = 4 } = await request.json();
@@ -14,8 +92,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Generate content using AI
-    const prompt = `Eres un experto en pedagogía digital y creación de contenido educativo técnico.
+    let content;
+
+    // Try OpenAI first, fallback to demo content
+    try {
+      const prompt = `Eres un experto en pedagogía digital y creación de contenido educativo técnico.
 
 Genera ${numberOfLessons} micro-lecciones para enseñar "${skillName}" a nivel ${difficulty}.
 Categoría: ${category}
@@ -57,20 +138,24 @@ Responde en formato JSON válido:
   ]
 }`;
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'Eres un generador de contenido educativo. Siempre respondes en JSON válido sin caracteres adicionales.',
-        },
-        { role: 'user', content: prompt },
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7,
-    });
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un generador de contenido educativo. Siempre respondes en JSON válido sin caracteres adicionales.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.7,
+      });
 
-    const content = JSON.parse(completion.choices[0].message.content || '{}');
+      content = JSON.parse(completion.choices[0].message.content || '{}');
+    } catch (aiError) {
+      console.log('OpenAI not available, using demo content:', aiError);
+      content = generateDemoContent(skillName, difficulty, numberOfLessons);
+    }
 
     // Save to Supabase
     const supabase = await createServerSupabaseClient();

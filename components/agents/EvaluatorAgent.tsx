@@ -113,6 +113,7 @@ export function EvaluatorAgent({
 
   useEffect(() => {
     evaluateExam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const evaluateExam = async () => {
